@@ -1,74 +1,38 @@
 const User = require('../models/User');
 
-// 1. Create User
-exports.createUser = async (req, res) => {
-    try {
-        const newUser = await User.create(req.body);
-        res.status(201).json(newUser);
-    } catch (err) { res.status(400).json({ error: err.message }); }
-};
-
-// 1. Get All (có query username)
+// Get all (có filter username includes)
 exports.getAllUsers = async (req, res) => {
     try {
         const { username } = req.query;
-        let filter = { isDeleted: false };
-        if (username) filter.username = { $regex: username, $options: 'i' };
+        let query = { isDeleted: false };
+        if (username) query.username = { $regex: username, $options: 'i' };
         
-        const users = await User.find(filter).populate('role');
+        const users = await User.find(query).populate('role');
         res.json(users);
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    } catch (err) { res.status(500).json(err); }
 };
 
-// 1. Get by ID
-exports.getUserById = async (req, res) => {
-    try {
-        const user = await User.findOne({ _id: req.params.id, isDeleted: false }).populate('role');
-        if (!user) return res.status(404).json({ message: "Không thấy User" });
-        res.json(user);
-    } catch (err) { res.status(500).json({ error: err.message }); }
-};
-
-// 1. Soft Delete
-exports.softDeleteUser = async (req, res) => {
-    try {
-        await User.findByIdAndUpdate(req.params.id, { isDeleted: true });
-        res.json({ message: "Đã xóa mềm thành công" });
-    } catch (err) { res.status(400).json({ error: err.message }); }
-};
-
-// 2. Enable User
+// Enable/Disable
 exports.enableUser = async (req, res) => {
-    try {
-        const { email, username } = req.body;
-        const user = await User.findOneAndUpdate(
-            { email, username, isDeleted: false },
-            { status: true },
-            { new: true }
-        );
-        if (!user) return res.status(400).json({ message: "Thông tin sai hoặc User không tồn tại" });
-        res.json({ message: "Status -> True", data: user });
-    } catch (err) { res.status(400).json({ error: err.message }); }
+    const { email, username } = req.body;
+    const user = await User.findOneAndUpdate({ email, username }, { status: true }, { new: true });
+    user ? res.json({ message: "User enabled", user }) : res.status(404).send("User not found");
 };
 
-// 3. Disable User
 exports.disableUser = async (req, res) => {
-    try {
-        const { email, username } = req.body;
-        const user = await User.findOneAndUpdate(
-            { email, username, isDeleted: false },
-            { status: false },
-            { new: true }
-        );
-        if (!user) return res.status(400).json({ message: "Thông tin sai hoặc User không tồn tại" });
-        res.json({ message: "Status -> False", data: user });
-    } catch (err) { res.status(400).json({ error: err.message }); }
+    const { email, username } = req.body;
+    const user = await User.findOneAndUpdate({ email, username }, { status: false }, { new: true });
+    user ? res.json({ message: "User disabled", user }) : res.status(404).send("User not found");
 };
 
-// 4. Get Users by Role ID
+// Lấy user theo role id
 exports.getUsersByRole = async (req, res) => {
-    try {
-        const users = await User.find({ role: req.params.id, isDeleted: false });
-        res.json(users);
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    const users = await User.find({ role: req.params.id, isDeleted: false });
+    res.json(users);
+};
+
+// Xoá mềm
+exports.deleteUser = async (req, res) => {
+    await User.findByIdAndUpdate(req.params.id, { isDeleted: true });
+    res.json({ message: "User deleted" });
 };
